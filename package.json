@@ -9,6 +9,10 @@
   "dependencies": {
     "iconv-lite": "^0.4.24",
     "linebreak": "^0.3.0",
+    "highcharts": "^6.0.6",
+    "canvg": "github:canvg/canvg",
+    "rgbcolor": "^1.0.1",
+    "svg-toDataUrl": "github:sampumon/SVG.toDataURL",
     "pdfkit": "^0.8.3"
   },
   "devDependencies": {

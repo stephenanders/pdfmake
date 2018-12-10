@@ -34,6 +34,12 @@ PageElementWriter.prototype.addLine = function (line, dontUpdateContextPosition,
 	});
 };
 
+PageElementWriter.prototype.addLines = function (lines, dontUpdateContextPosition, index) {
+    return fitOnPage(this, function (self) {
+        return self.writer.addLines(lines, dontUpdateContextPosition, index);
+    });
+};
+
 PageElementWriter.prototype.addImage = function (image, index) {
 	return fitOnPage(this, function (self) {
 		return self.writer.addImage(image, index);
@@ -58,8 +64,8 @@ PageElementWriter.prototype.endClip = function () {
 	return this.writer.endClip();
 };
 
-PageElementWriter.prototype.alignCanvas = function (node) {
-	this.writer.alignCanvas(node);
+PageElementWriter.prototype.hAlignCanvas = function (node) {
+	this.writer.hAlignCanvas(node);
 };
 
 PageElementWriter.prototype.addFragment = function (fragment, useBlockXOffset, useBlockYOffset, dontUpdateContextPosition) {

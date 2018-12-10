@@ -79,6 +79,12 @@ function fontStringify(key, val) {
 	return val;
 }
 
+//image size is encoded in pixels... need to get the value in points b/c that is the value used in PDF
+function pxToPt(value) {
+    //https://www.w3.org/TR/CSS21/syndata.html#x39 --> in CSS: 1px is equal to 0.75pt
+    return parseFloat(value) * 0.75;
+};
+
 module.exports = {
 	isString: isString,
 	isNumber: isNumber,
@@ -90,5 +96,6 @@ module.exports = {
 	isUndefined: isUndefined,
 	pack: pack,
 	fontStringify: fontStringify,
-	offsetVector: offsetVector
+	offsetVector: offsetVector,
+	pxToPt: pxToPt
 };

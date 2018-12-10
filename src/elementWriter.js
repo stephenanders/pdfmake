@@ -5,6 +5,9 @@ var isNumber = require('./helpers').isNumber;
 var pack = require('./helpers').pack;
 var offsetVector = require('./helpers').offsetVector;
 var DocumentContext = require('./documentContext');
+var _ = require('lodash');
+
+_.noConflict();
 
 /**
  * Creates an instance of ElementWriter - a line/vector writer, which adds
@@ -37,7 +40,7 @@ ElementWriter.prototype.addLine = function (line, dontUpdateContextPosition, ind
 	line.x = context.x + (line.x || 0);
 	line.y = context.y + (line.y || 0);
 
-	this.alignLine(line);
+	this.hAlignLine(line);
 
 	addPageItem(page, {
 		type: 'line',
@@ -52,14 +55,59 @@ ElementWriter.prototype.addLine = function (line, dontUpdateContextPosition, ind
 	return position;
 };
 
-ElementWriter.prototype.alignLine = function (line) {
+ElementWriter.prototype.addLines = function (lines, dontUpdateContextPosition, index) {
+    if (lines.length > 0) {
+        var self = this;
+        var height = lines[0].getHeight();
+        var textHeight = lines[0].getTextHeight();
+        var context = self.context;
+        var page = context.getCurrentPage(),
+            position = self.getCurrentPositionOnPage();
+
+        if (context.availableHeight < height || !page) {
+            return false;
+        }
+
+        var startPosition = _.cloneDeep(position);
+        var positions = [];
+        _.forEach(lines, function (line) {
+            //for (var i = 0, l = lines.length; i < l; i++) {
+            //    line = lines[i];
+
+            line.x = context.x + (line.x || 0);
+            line.y = context.y + (line.y || 0);
+
+            self.hAlignLine(line);
+
+            positions.push(self.getCurrentPositionOnPage());
+            if (!dontUpdateContextPosition) context.moveDown(textHeight);
+        });
+
+        self.vAlignLines(lines);
+
+        _.forEach(lines, function (line) {
+            addPageItem(page, {
+                type: 'line',
+                item: line
+            }, index);
+            self.tracker.emit('lineAdded', line);
+        });
+
+        var endY = startPosition.top + height
+        if (!dontUpdateContextPosition && endY > context.y) context.moveDown(endY - context.y);
+
+        return positions;
+    }
+};
+
+ElementWriter.prototype.hAlignLine = function (line) {
 	var width = this.context.availableWidth;
 	var lineWidth = line.getWidth();
 
-	var alignment = line.inlines && line.inlines.length > 0 && line.inlines[0].alignment;
+    var hAlign = line.inlines && line.inlines.length > 0 && line.inlines[0].hAlign;
 
 	var offset = 0;
-	switch (alignment) {
+	switch (hAlign) {
 		case 'right':
 			offset = width - lineWidth;
 			break;
@@ -72,7 +120,7 @@ ElementWriter.prototype.alignLine = function (line) {
 		line.x = (line.x || 0) + offset;
 	}
 
-	if (alignment === 'justify' &&
+	if (hAlign === 'justify' &&
 		!line.newLineForced &&
 		!line.lastLineInParagraph &&
 		line.inlines.length > 1) {
@@ -85,6 +133,34 @@ ElementWriter.prototype.alignLine = function (line) {
 			line.inlines[i].justifyShift = additionalSpacing;
 		}
 	}
+};
+
+ElementWriter.prototype.vAlignLines = function (lines) {
+
+    var height = lines[0].getHeight(); // || this.context.availableHeight;
+    var linesHeight = lines[0].getTextHeight() * lines.length;
+
+    var vAlign = lines[0].inlines && lines[0].inlines.length > 0 && lines[0].inlines[0].vAlign;
+
+    var offset = 0;
+    switch (vAlign) {
+        case 'bottom':
+            offset = height - linesHeight;
+            break;
+        case 'middle':
+            offset = (height - linesHeight) / 2;
+            break;
+        case 'top':
+            offset = 0; // - lineHeight;
+            break;
+    }
+
+    if (offset > 0) {
+        _.forEach(lines, function (line) {
+            line.y = (line.y || 0) + offset;
+        });
+    }
+
 };
 
 ElementWriter.prototype.addImage = function (image, index) {
@@ -103,7 +179,8 @@ ElementWriter.prototype.addImage = function (image, index) {
 	image.x = context.x + image._x;
 	image.y = context.y;
 
-	this.alignImage(image);
+    this.hAlignImage(image);
+    this.vAlignImage(image);
 
 	addPageItem(page, {
 		type: 'image',
@@ -131,7 +208,8 @@ ElementWriter.prototype.addQr = function (qr, index) {
 	qr.x = context.x + qr._x;
 	qr.y = context.y;
 
-	this.alignImage(qr);
+    this.hAlignImage(qr);
+    this.vAlignImage(qr);
 
 	for (var i = 0, l = qr._canvas.length; i < l; i++) {
 		var vector = qr._canvas[i];
@@ -145,11 +223,11 @@ ElementWriter.prototype.addQr = function (qr, index) {
 	return position;
 };
 
-ElementWriter.prototype.alignImage = function (image) {
+ElementWriter.prototype.hAlignImage = function (image) {
 	var width = this.context.availableWidth;
 	var imageWidth = image._minWidth;
 	var offset = 0;
-	switch (image._alignment) {
+	switch (image._hAlign) {
 		case 'right':
 			offset = width - imageWidth;
 			break;
@@ -163,11 +241,29 @@ ElementWriter.prototype.alignImage = function (image) {
 	}
 };
 
-ElementWriter.prototype.alignCanvas = function (node) {
+ElementWriter.prototype.vAlignImage = function (image) {
+    var height = this.context.availableHeight;
+    var imageHeight = image._minHeight;
+    var offset = 0;
+    switch (image._vAlign) {
+        case 'bottom':
+            offset = height - imageHeight;
+            break;
+        case 'middle':
+            offset = (height - imageHeight) / 2;
+            break;
+    }
+
+    if (offset) {
+        image.x = (image.x || 0) + offset;
+    }
+};
+
+ElementWriter.prototype.hAlignCanvas = function (node) {
 	var width = this.context.availableWidth;
 	var canvasWidth = node._minWidth;
 	var offset = 0;
-	switch (node._alignment) {
+	switch (node._hAlign) {
 		case 'right':
 			offset = width - canvasWidth;
 			break;
@@ -178,6 +274,25 @@ ElementWriter.prototype.alignCanvas = function (node) {
 	if (offset) {
 		node.canvas.forEach(function (vector) {
 			offsetVector(vector, offset, 0);
+		});
+	}
+};
+
+ElementWriter.prototype.vAlignCanvas = function (node) {
+    var height = this.context.availableHeight;
+    var imageHeight = image._minHeight;
+    var offset = 0;
+    switch (image._vAlign) {
+        case 'bottom':
+            offset = height - imageHeight;
+            break;
+        case 'middle':
+            offset = (height - imageHeight) / 2;
+            break;
+    }
+	if (offset) {
+		node.canvas.forEach(function (vector) {
+			offsetVector(vector, 0, offset);
 		});
 	}
 };

@@ -75,6 +75,21 @@ Line.prototype.getAvailableWidth = function () {
 };
 
 /**
+* Returns height of text in the line
+* @return {Number}
+*/
+Line.prototype.getTextHeight = function () {
+    var max = 0;
+
+    this.inlines.forEach(function (item) {
+        //max = Math.max(max, item.height || 0);
+        max = Math.max(max, item.font.lineHeight(item.fontSize) * item.lineHeight || 0);
+    });
+
+    return max;
+};
+
+/**
  * Returns line height
  * @return {Number}
  */

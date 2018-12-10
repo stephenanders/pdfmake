@@ -18,13 +18,18 @@ ImageMeasure.prototype.measureImage = function (src) {
 		if (image === null || image === undefined) {
 			throw 'invalid image, images dictionary should contain dataURL entries (or local file paths in node.js)';
 		}
+
+        // calculate aspect ratio to make sure we dont distort the image
+        image.aspectRatioH = image.height / image.width;
+        image.aspectRatioW = image.width / image.height;
+
 		image.embed(this.pdfKitDoc);
 		this.pdfKitDoc._imageRegistry[src] = image;
 	} else {
 		image = this.pdfKitDoc._imageRegistry[src];
 	}
 
-	return {width: image.width, height: image.height};
+    return { width: image.width, height: image.height, aspectRatioH: image.aspectRatioH, aspectRatioW: image.aspectRatioW };
 
 	function realImageSrc(src) {
 		var img = that.imageDictionary[src];

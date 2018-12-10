@@ -13,6 +13,8 @@ var fontStringify = require('./helpers').fontStringify;
 var pack = require('./helpers').pack;
 var qrEncoder = require('./qrEnc.js');
 
+var pxToPt = require('./helpers').pxToPt;
+
 /**
  * @private
  */
@@ -166,32 +168,44 @@ DocMeasure.prototype.measureImage = function (node) {
 		var factor = (imageSize.width / imageSize.height > node.fit[0] / node.fit[1]) ? node.fit[0] / imageSize.width : node.fit[1] / imageSize.height;
 		node._width = node._minWidth = node._maxWidth = imageSize.width * factor;
 		node._height = imageSize.height * factor;
+    } else if (node.height && !node.width) {
+        // allow to supply only height
+        node._height = node.height;
+        node._width = node._minWidth = node._maxWidth = parseInt(node._height * imageSize.aspectRatioW);
 	} else {
-		node._width = node._minWidth = node._maxWidth = node.width || imageSize.width;
-		node._height = node.height || (imageSize.height * node._width / imageSize.width);
+		// node._width = node._minWidth = node._maxWidth = node.width || imageSize.width;
+		// node._height = node.height || (imageSize.height * node._width / imageSize.width);
+        node._width = node._minWidth = node._maxWidth = node.width || pxToPt(imageSize.width);
+        // not maintaining aspect ratio after adjusting image pixels to points
+        node._height = node.height || parseInt(node._width * imageSize.aspectRatioH);
 
 		if (isNumber(node.maxWidth) && node.maxWidth < node._width) {
 			node._width = node._minWidth = node._maxWidth = node.maxWidth;
-			node._height = node._width * imageSize.height / imageSize.width;
+			// node._height = node._width * imageSize.height / imageSize.width;
+			node._height = parseInt(node._width * imageSize.aspectRatioH);
 		}
 
 		if (isNumber(node.maxHeight) && node.maxHeight < node._height) {
 			node._height = node.maxHeight;
-			node._width = node._minWidth = node._maxWidth = node._height * imageSize.width / imageSize.height;
+			// node._width = node._minWidth = node._maxWidth = node._height * imageSize.width / imageSize.height;
+			nodw._width = node._minWidth = node._maxWidth = parseInt(node._height * imageSize.aspectRatioW);
 		}
 
 		if (isNumber(node.minWidth) && node.minWidth > node._width) {
 			node._width = node._minWidth = node._maxWidth = node.minWidth;
-			node._height = node._width * imageSize.height / imageSize.width;
+			// node._height = node._width * imageSize.height / imageSize.width;
+			node._height = parseInt(node._width * imageSize.aspectRatioH);
 		}
 
 		if (isNumber(node.minHeight) && node.minHeight > node._height) {
 			node._height = node.minHeight;
-			node._width = node._minWidth = node._maxWidth = node._height * imageSize.width / imageSize.height;
+			// node._width = node._minWidth = node._maxWidth = node._height * imageSize.width / imageSize.height;
+			nodw._width = node._minWidth = node._maxWidth = parseInt(node._height * imageSize.aspectRatioW);
 		}
 	}
 
-	node._alignment = this.styleStack.getProperty('alignment');
+    node._hAlign = this.styleStack.getProperty('hAlign');
+    node._vAlign = this.styleStack.getProperty('vAlign');
 	return node;
 };
 
@@ -519,19 +533,27 @@ DocMeasure.prototype.measureColumns = function (node) {
 
 DocMeasure.prototype.measureTable = function (node) {
 	extendTableWidths(node);
+	extendTableHeights(node);
+
 	node._layout = getLayout(this.tableLayouts);
 	node._offsets = getOffsets(node._layout);
+
+    if (node.table.caption && node.table.caption.stack) {
+        var data = node.table.caption;
+        data = this.styleStack.auto(data, measureCb(this, data));
+    }
 
 	var colSpans = [];
 	var col, row, cols, rows;
 
-	for (col = 0, cols = node.table.body[0].length; col < cols; col++) {
-		var c = node.table.widths[col];
-		c._minWidth = 0;
-		c._maxWidth = 0;
+	for (row = 0, rows = node.table.body.length; row < rows; row++) {
+		var rowData = node.table.body[row];
 
-		for (row = 0, rows = node.table.body.length; row < rows; row++) {
-			var rowData = node.table.body[row];
+		for (col = 0, cols = node.table.body[0].length; col < cols; col++) {
+			var c = node.table.widths[col];
+			c._minWidth = 0;
+			c._maxWidth = 0;
+
 			var data = rowData[col];
 			if (data === undefined) {
 				console.error('Malformed table row ', rowData, 'in node ', node);
@@ -552,6 +574,10 @@ DocMeasure.prototype.measureTable = function (node) {
 					c._maxWidth = Math.max(c._maxWidth, data._maxWidth);
 				}
 			}
+
+            var h = node.table.heights[row] || 0;
+            h = Math.max(h, (this.textTools.getStyleProperty(data, this.styleContextStack, "height", 10)));
+            node.table.heights[row] = h;
 
 			if (data.rowSpan && data.rowSpan > 1) {
 				markVSpans(node.table, row, col, data.rowSpan);
@@ -675,9 +701,13 @@ DocMeasure.prototype.measureTable = function (node) {
 	function getMinMax(col, span, offsets) {
 		var result = {minWidth: 0, maxWidth: 0};
 
+		var offset = 0.0;
 		for (var i = 0; i < span; i++) {
-			result.minWidth += node.table.widths[col + i]._minWidth + (i ? offsets.offsets[col + i] : 0);
-			result.maxWidth += node.table.widths[col + i]._maxWidth + (i ? offsets.offsets[col + i] : 0);
+			if (node.table.widths[col + i]){
+				offset = parseFloat(offsets.offsets[col + i]);
+				result.minWidth += node.table.widths[col + i]._minWidth + (offset || 0);
+				result.maxWidth += node.table.widths[col + i]._maxWidth + (offset || 0);
+			}
 		}
 
 		return result;
@@ -725,6 +755,27 @@ DocMeasure.prototype.measureTable = function (node) {
 			}
 		}
 	}
+
+    function extendTableHeights(node) {
+        if (!node.table.heights) {
+            node.table.heights = 'auto';
+        }
+
+        if (typeof node.table.heights === 'string' || node.table.heights instanceof String) {
+            node.table.heights = [ node.table.heights ];
+
+            while(node.table.heights.length < node.table.body.length) {
+                node.table.heights.push(node.table.heights[node.table.heights.length - 1]);
+            }
+        }
+
+        for(var i = 0, l = node.table.heights.length; i < l; i++) {
+            var h = node.table.heights[i];
+            if (typeof h === 'number' || h instanceof Number || typeof h === 'string' || h instanceof String) {
+                node.table.heights[i] = { height: h };
+            }
+        }
+    }
 };
 
 DocMeasure.prototype.measureCanvas = function (node) {
@@ -757,14 +808,16 @@ DocMeasure.prototype.measureCanvas = function (node) {
 
 	node._minWidth = node._maxWidth = w;
 	node._minHeight = node._maxHeight = h;
-	node._alignment = this.styleStack.getProperty('alignment');
+    node._hAlign = this.styleStack.getProperty('hAlign');
+    node._vAlign = this.styleStack.getProperty('vAlign');
 
 	return node;
 };
 
 DocMeasure.prototype.measureQr = function (node) {
 	node = qrEncoder.measure(node);
-	node._alignment = this.styleStack.getProperty('alignment');
+    node._hAlign = this.styleStack.getProperty('hAlign');
+    node._vAlign = this.styleStack.getProperty('vAlign');
 	return node;
 };
 

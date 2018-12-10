@@ -14,6 +14,8 @@ var defaultClientFonts = {
 	}
 };
 
+var HTMLParser = require('../htmlParser');
+
 function Document(docDefinition, tableLayouts, fonts, vfs) {
 	this.docDefinition = docDefinition;
 	this.tableLayouts = tableLayouts || null;
@@ -187,5 +189,6 @@ module.exports = {
 			throw 'Your browser does not provide the level of support needed';
 		}
 		return new Document(docDefinition, global.pdfMake.tableLayouts, global.pdfMake.fonts, global.pdfMake.vfs);
-	}
+    },
+    parseHTML: HTMLParser.parseHTML
 };

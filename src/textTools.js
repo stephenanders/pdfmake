@@ -300,7 +300,9 @@ function measure(fontProvider, textArray, styleContextStack) {
 		var font = fontProvider.provideFont(fontName, bold, italics);
 
 		item.width = widthOfString(item.text, font, fontSize, characterSpacing, fontFeatures);
-		item.height = font.lineHeight(fontSize) * lineHeight;
+        item.height = getStyleProperty(item, styleContextStack, 'height', font.lineHeight(fontSize) * lineHeight);
+        item.lineHeight = lineHeight;
+
 
 		if (!item.leadingCut) {
 			item.leadingCut = 0;
@@ -318,7 +320,8 @@ function measure(fontProvider, textArray, styleContextStack) {
 			item.trailingCut = 0;
 		}
 
-		item.alignment = getStyleProperty(item, styleContextStack, 'alignment', 'left');
+        item.hAlign = getStyleProperty(item, styleContextStack, 'hAlign', 'left');
+        item.vAlign = getStyleProperty(item, styleContextStack, 'vAlign', 'top');
 		item.font = font;
 		item.fontSize = fontSize;
 		item.fontFeatures = fontFeatures;
@@ -339,5 +342,7 @@ function measure(fontProvider, textArray, styleContextStack) {
 function widthOfString(text, font, fontSize, characterSpacing, fontFeatures) {
 	return font.widthOfString(text, fontSize, fontFeatures) + ((characterSpacing || 0) * (text.length - 1));
 }
+
+TextTools.prototype.getStyleProperty = getStyleProperty;
 
 module.exports = TextTools;

@@ -53,10 +53,10 @@ TableProcessor.prototype.beginTable = function (writer) {
 
 		rsd.push({left: 0, rowSpan: 0});
 
-		for (var i = 0, l = self.tableNode.table.body[0].length; i < l; i++) {
+		for (var i = 0, l = self.tableNode.table.body[0] ? self.tableNode.table.body[0].length : 0; i < l; i++) {
 			var paddings = self.layout.paddingLeft(i, self.tableNode) + self.layout.paddingRight(i, self.tableNode);
 			var lBorder = self.layout.vLineWidth(i, self.tableNode);
-			lastWidth = paddings + lBorder + self.tableNode.table.widths[i]._calcWidth;
+			lastWidth = paddings + lBorder + self.tableNode.table.widths[i] ? self.tableNode.table.widths[i]._calcWidth : 0;
 			rsd[rsd.length - 1].width = lastWidth;
 			x += lastWidth;
 			rsd.push({left: x, rowSpan: 0, width: 0});

@@ -4,6 +4,7 @@ var isString = require('./helpers').isString;
 var isArray = require('./helpers').isArray;
 var isUndefined = require('./helpers').isUndefined;
 var isNull = require('./helpers').isNull;
+var pxToPt = require('./helpers').pxToPt;
 
 /**
  * Creates an instance of StyleContextStack used for style inheritance and style overrides
@@ -17,6 +18,17 @@ function StyleContextStack(styleDictionary, defaultStyle) {
 	this.defaultStyle = defaultStyle || {};
 	this.styleDictionary = styleDictionary;
 	this.styleOverrides = [];
+
+    var obj, value;
+    for (var name in styleDictionary) {
+        obj = styleDictionary[name];
+        for (var key in obj) {
+            value = obj[key];
+            if ((typeof value === 'string' || value instanceof String) && /px$/.test(value)) {
+                obj[key] = pxToPt(parseFloat(value));
+            }
+        }
+    }
 }
 
 /**
@@ -90,7 +102,9 @@ StyleContextStack.prototype.autopush = function (item) {
 		'fontFeatures',
 		'bold',
 		'italics',
-		'alignment',
+        'hAlign',
+        'vAlign',
+        'height',
 		'color',
 		'columnGap',
 		'fillColor',

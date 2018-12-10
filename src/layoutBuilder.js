@@ -18,9 +18,7 @@ var TextTools = require('./textTools');
 var StyleContextStack = require('./styleContextStack');
 
 function addAll(target, otherArray) {
-	otherArray.forEach(function (item) {
-		target.push(item);
-	});
+	Array.prototype.push.apply(target, otherArray);
 }
 
 /**
@@ -334,6 +332,8 @@ function decorateNode(node) {
 			});
 		}
 	};
+
+	return node;
 }
 
 LayoutBuilder.prototype.processNode = function (node) {
@@ -422,6 +422,9 @@ LayoutBuilder.prototype.processNode = function (node) {
 LayoutBuilder.prototype.processVerticalContainer = function (node) {
 	var self = this;
 	node.stack.forEach(function (item) {
+        if (node.link > '') {
+            item.link = node.link;
+        }
 		self.processNode(item);
 		addAll(node.positions, item.positions);
 
@@ -580,6 +583,10 @@ LayoutBuilder.prototype.processList = function (orderedList, node) {
 LayoutBuilder.prototype.processTable = function (tableNode) {
 	var processor = new TableProcessor(tableNode);
 
+	if (tableNode.table.caption && tableNode.table.caption.stack) {
+		this.processVerticalContainer(decorateNode(tableNode.table.caption));
+	}
+  
 	processor.beginTable(this.writer);
 
 	var rowHeights = tableNode.table.heights;
@@ -611,7 +618,8 @@ LayoutBuilder.prototype.processTable = function (tableNode) {
 // leafs (texts)
 LayoutBuilder.prototype.processLeaf = function (node) {
 	var line = this.buildNextLine(node);
-	var currentHeight = (line) ? line.getHeight() : 0;
+    var textHeight = (line) ? line.getTextHeight() : 0;
+    var currentHeight = textHeight;
 	var maxHeight = node.maxHeight || -1;
 
 	if (node._tocItemRef) {
@@ -635,12 +643,17 @@ LayoutBuilder.prototype.processLeaf = function (node) {
 	}
 
 	while (line && (maxHeight === -1 || currentHeight < maxHeight)) {
-		var positions = this.writer.addLine(line);
-		node.positions.push(positions);
+		// var positions = this.writer.addLine(line);
+		// node.positions.push(positions);
 		line = this.buildNextLine(node);
 		if (line) {
-			currentHeight += line.getHeight();
-		}
+            lines.push(line);
+            currentHeight += textHeight;
+        }
+    }
+    if (lines.length > 0) {
+        var positions = this.writer.addLines(lines);
+        Array.prototype.push.apply(node.positions, positions);
 	}
 };
 
@@ -699,6 +712,11 @@ LayoutBuilder.prototype.buildNextLine = function (textNode) {
 
 		isForceContinue = inline.noNewLine && !isHardWrap;
 	}
+    line.width = line.getWidth();
+
+    if (textNode.link > '') {
+        line.link = textNode.link;
+    }
 
 	line.lastLineInParagraph = textNode._inlines.length === 0;
 
@@ -721,7 +739,7 @@ LayoutBuilder.prototype.processCanvas = function (node) {
 		this.writer.moveToNextPage();
 	}
 
-	this.writer.alignCanvas(node);
+	this.writer.hAlignCanvas(node);
 
 	node.canvas.forEach(function (vector) {
 		var position = this.writer.addVector(vector);

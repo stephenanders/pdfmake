@@ -440,6 +440,10 @@ function renderLine(line, x, y, pdfKitDoc) {
 
 	}
 
+    if (line.link) {
+        pdfKitDoc.link(x, y, line.width, lineHeight, line.link);
+    }
+
 	textDecorator.drawDecorations(line, x, y, pdfKitDoc);
 }
 
@@ -542,10 +546,10 @@ function renderVector(vector, pdfKitDoc) {
 
 function renderImage(image, x, y, pdfKitDoc) {
 	pdfKitDoc.opacity(image.opacity || 1);
-	pdfKitDoc.image(image.image, image.x, image.y, {width: image._width, height: image._height});
-	if (image.link) {
-		pdfKitDoc.link(image.x, image.y, image._width, image._height, image.link);
-	}
+	pdfKitDoc.image(image.image, image.x, image.y, {width: image._width, height: image._height, link: image.link ? image.link : null });
+//	if (image.link) {
+//		pdfKitDoc.link(image.x, image.y, image._width, image._height, image.link);
+//	}
 }
 
 function beginClip(rect, pdfKitDoc) {
